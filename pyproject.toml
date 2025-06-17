@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dicom2fhir"
+version = "0.1.0"
+description = "Convert dicoms to FHIR Bundles containing ImagingStudy, Patient, Device, and Observation resources."
+keywords = ["dicom", "fhir", "resources", "python", "hl7", "health IT", "healthcare"]
+readme = "README.md"
+license-files = ["LICENSE"]
+authors = [{name = "Felix Nensa", email = "felix.nensa@uk-essen.de"}]
+dependencies = [
+  "pydicom>=3.0.1",
+  "fhir.resources>=8.0.0",
+  "html5lib>=1.1",
+  "pandas>=2.3.0",
+  "PyYAML>=6.0.2",
+  "tqdm>=4.67.1"
+]
+
+[tool.setuptools.packages.find]
+where = ["dicom2fhir"]
