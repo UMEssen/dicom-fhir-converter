@@ -10,6 +10,8 @@ from fhir.resources.R4B import fhirtypes
 from fhir.resources.R4B import reference
 from fhir.resources.R4B import extension
 import pandas as pd
+import json
+from pathlib import Path
 import os
 import logging
 
@@ -23,53 +25,25 @@ SCANNING_VARIANT_SYS = "https://dicom.nema.org/medical/dicom/current/output/chtm
 
 SOP_CLASS_SYS = "urn:ietf:rfc:3986"
 
-BODYSITE_SNOMED_MAPPING_URL = "https://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html"
+# load rather expesive resource into global var to make it reusable
+BODYSITE_SNOMED_MAPPING_PATH = Path(__file__).parent / "resources" / "terminologies" / "bodysite_snomed.json"
+BODYSITE_SNOMED_MAPPING = pd.DataFrame(json.loads(BODYSITE_SNOMED_MAPPING_PATH.read_text(encoding="utf-8")))
 
-
-def _get_snomed_bodysite_mapping(url, debug: bool = False):
-
-    logging.info(f"Get BodySite-SNOMED mapping from {url}")
-    df = pd.read_html(url, converters={
-        "Code Value": str
-    })
-
-    # required columns
-    req_cols = ["Code Value", "Code Meaning", "Body Part Examined"]
-
-    mapping = df[2][req_cols]
-
-    # remove empty values:
-    mapping = mapping[~mapping['Body Part Examined'].isnull()]
-
-    if debug:
-        fn_out = os.path.join(
-            os.curdir,
-            'mapping_dicom_snomed.csv'
-        )
-        mapping.to_csv(
-            path_or_buf=fn_out,
-            index=False
-        )
-
-    return mapping
-
-
-# get mapping table
-mapping_table = _get_snomed_bodysite_mapping(url=BODYSITE_SNOMED_MAPPING_URL)
-
-
-def _get_snomed(dicom_bodypart, sctmapping):
-    # codes are strings
-    return sctmapping.loc[sctmapping['Body Part Examined']
-                          == dicom_bodypart]["Code Value"].values[0]
-
+def _get_snomed(dicom_bodypart: str, sctmapping: pd.DataFrame) -> dict[str, str] | None:
+    _rec = sctmapping.loc[sctmapping['Body Part Examined'] == dicom_bodypart]
+    if _rec.empty:
+        return None
+    return {
+        'code': _rec["Code Value"].iloc[0],
+        'display': _rec["Code Meaning"].iloc[0],
+    }
 
 def gen_accession_identifier(id):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.use = "usual"
-    idf.type = codeableconcept.CodeableConcept()
+    idf.type = codeableconcept.CodeableConcept.model_construct()
     idf.type.coding = []
-    acsn = coding.Coding()
+    acsn = coding.Coding.model_construct()
     acsn.system = TERMINOLOGY_CODING_SYS
     acsn.code = TERMINOLOGY_CODING_SYS_CODE_ACCESSION
 
@@ -79,26 +53,26 @@ def gen_accession_identifier(id):
 
 
 def gen_studyinstanceuid_identifier(id):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.system = "urn:dicom:uid"
     idf.value = "urn:oid:" + id
     return idf
 
 
 def get_patient_resource_ids(PatientID, IssuerOfPatientID):
-    idf = identifier.Identifier()
+    idf = identifier.Identifier.model_construct()
     idf.use = "usual"
     idf.value = PatientID
 
-    idf.type = codeableconcept.CodeableConcept()
+    idf.type = codeableconcept.CodeableConcept.model_construct()
     idf.type.coding = []
-    id_coding = coding.Coding()
+    id_coding = coding.Coding.model_construct()
     id_coding.system = TERMINOLOGY_CODING_SYS
     id_coding.code = TERMINOLOGY_CODING_SYS_CODE_MRN
     idf.type.coding.append(id_coding)
 
     if IssuerOfPatientID is not None:
-        idf.assigner = reference.Reference()
+        idf.assigner = reference.Reference.model_construct()
         idf.assigner.display = IssuerOfPatientID
 
     return idf
@@ -136,12 +110,12 @@ def calc_dob(dicom_dob):
 
 
 def inline_patient_resource(referenceId, PatientID, IssuerOfPatientID, patientName, gender, dob):
-    p = patient.Patient()
+    p = patient.Patient.model_construct()
     p.id = referenceId
     p.name = []
     # p.use = "official"
     p.identifier = [get_patient_resource_ids(PatientID, IssuerOfPatientID)]
-    hn = humanname.HumanName()
+    hn = humanname.HumanName.model_construct()
     hn.family = patientName.family_name
     if patientName.given_name != '':
         hn.given = [patientName.given_name]
@@ -157,8 +131,8 @@ def gen_procedurecode_array(procedures):
         return None
     fhir_proc = []
     for p in procedures:
-        concept = codeableconcept.CodeableConcept()
-        c = coding.Coding()
+        concept = codeableconcept.CodeableConcept.model_construct()
+        c = coding.Coding.model_construct()
         c.system = p["system"]
         c.code = p["code"]
         c.display = p["display"]
@@ -189,33 +163,31 @@ def gen_started_datetime(dt, tm):
     dt_date = datetime.strptime(dt_string, dt_pattern)
 
     # strangely, providing the datetime.date object does not work
-    fhirDtm = fhirtypes.DateTime(
+    fhirDtm = datetime(
         dt_date.year,
         dt_date.month,
         dt_date.day,
         dt_date.hour,
         dt_date.minute,
-        dt_date.second,
-        tzinfo="+01:00"
+        dt_date.second
     )
 
     return fhirDtm
-
 
 def gen_reason(reason, reasonStr):
     if reason is None and reasonStr is None:
         return None
     reasonList = []
     if reason is None or len(reason) <= 0:
-        rc = codeableconcept.CodeableConcept()
+        rc = codeableconcept.CodeableConcept.model_construct()
         rc.text = reasonStr
         reasonList.append(rc)
         return reasonList
 
     for r in reason:
-        rc = codeableconcept.CodeableConcept()
+        rc = codeableconcept.CodeableConcept.model_construct()
         rc.coding = []
-        c = coding.Coding()
+        c = coding.Coding.model_construct()
         c.system = r["system"]
         c.code = r["code"]
         c.display = r["display"]
@@ -224,34 +196,39 @@ def gen_reason(reason, reasonStr):
     return reasonList
 
 
-def gen_coding(value, system):
-    if isinstance(value, list):
+def gen_coding(code: str, system: str|None = None, display: str|None = None):
+    if isinstance(code, list):
         raise Exception(
         "More than one code for type Coding detected")
-    c = coding.Coding()
+    c = coding.Coding.model_construct()
+    c.code = code
     c.system = system
-    c.code = value
+    c.display = display
+    if system is None and display is None:
+        c.userSelected = True
+
     return c
 
-
 def gen_codeable_concept(value_list: list, system):
-    c = codeableconcept.CodeableConcept()
+    c = codeableconcept.CodeableConcept.model_construct()
     c.coding = []
     for _l in value_list:
         m = gen_coding(_l, system)
         c.coding.append(m)
     return c
 
-
 def gen_bodysite_coding(bd):
 
-    bd_snomed = _get_snomed(bd, sctmapping=mapping_table)
-    c = gen_coding(
-        value=bd_snomed,
-        system="http://snomed.info/sct"
-    )
-    return c
-
+    bd_snomed = _get_snomed(bd, sctmapping=BODYSITE_SNOMED_MAPPING)
+    
+    if bd_snomed is None:
+        return gen_coding(code=str(bd))
+    
+    return gen_coding(
+        code=str(bd_snomed['code']),
+        system="http://snomed.info/sct",
+        display=bd_snomed['display']
+    ) 
 
 # def update_study_modality_list(study_list_modality: list, modality: str):
 #     if study_list_modality is None or len(study_list_modality) <= 0:
@@ -298,13 +275,6 @@ def gen_bodysite_coding(bd):
 
     # study.laterality__ext.append(laterality)
     # return
-
-
-def gen_coding_text_only(text):
-    c = coding.Coding()
-    c.code = text
-    c.userSelected = True
-    return c
 
 
 def dcm_coded_concept(CodeSequence):
