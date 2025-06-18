@@ -12,7 +12,7 @@ The library does not rely on the terminology service therefore, any coding that 
 ## Usage
 
 ```python
-from dicom2fhir import process_dicom_2_fhir
+from dicom2fhir.dicom2fhir import process_dicom_2_fhir
 from pprint import pprint
 
 # Process a directory of DICOM files
@@ -272,5 +272,5 @@ The DICOM Study UID is actually stored as part of the "identifier" (see ```"syst
 
 ## Todo 
 
-- [ ] Allow to pass custom function to create FHIR resource ids from business identifiers
+- [x] Allow to pass custom function to create FHIR resource ids from business identifiers
 - [ ] Add support for DICOMweb data inputs
