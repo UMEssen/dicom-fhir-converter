@@ -1,8 +1,7 @@
 # dicom-fhir-converter
-DICOM FHIR converter is an open source python library that accepts a DICOM directory as an input.
-It processes all files (instances) within that directory. It expects that directory will only contain files for a single study.
-If multiple studies detected, an exception is raised. 
-Using the usual convention, if file cannot be read, it will be skipped assuming it is not a dicom file (no error raised).
+This project was originally forked from [alexa-ian/dicom-fhir-converter](https://github.com/alexa-ian/dicom-fhir-converter). However, due to extensive refactoring and structural changes, it has since been detached from the upstream repository and is now maintained as an independent, standalone Python library.
+
+The library converts DICOM data into a FHIR transaction Bundle that includes an ImagingStudy resource, a Patient resource, a Device resource, and optionally Observation resources. It supports two input modes: either a directory containing DICOM files (recursively parsed), or an `Iterable` of `pydicom.Dataset` instances passed directly to the API.
 
 This library utilizes the following projects:
 - fhir.resources project (https://pypi.org/project/fhir.resources/) - used to create FHIR models
@@ -13,11 +12,25 @@ The library does not rely on the terminology service therefore, any coding that 
 ## Usage
 
 ```python
-dicom2fhir.process_dicom_2_fhir("study directory")
+from dicom2fhir.dicom2fhir import process_dicom_2_fhir
+from pprint import pprint
+
+# Process a directory of DICOM files
+bundle = process_dicom_2_fhir("study directory")
+
+# Or provide an iterable of pydicom.Dataset objects directly
+# datasets = [pydicom.dcmread(path) for path in file_paths]
+# bundle = process_dicom_2_fhir(datasets)
+
+# Print the resulting FHIR Bundle as JSON
+pprint(bundle.model_dump_json(indent=2))
 ```
 
-The dicom file represents a single instance within DICOM study. A study is a collection of instances grouped by series.
-The assumption is that all instances are copied into a single folder prior to calling this function. The flattened structure is then consolidated into a single FHIR Imaging Study resource.
+The resulting object is a FHIR transaction Bundle containing:
+-	One ImagingStudy resource
+-	One Patient resource
+-	One Device resource
+-	Optionally, one or more Observation resources
 
 If you need to update the bodysite Snomed mappings run:
 
@@ -35,14 +48,8 @@ export RUN_FMX_TESTS=1
 The FHIR Imaging Study id is being generated internally within the library. 
 The DICOM Study UID is actually stored as part of the "identifier" (see ```"system":"urn:dicom:uid"``` object for DICOM study uid.
 
-The model is meant to be self-inclusive (to mimic the DICOM structure), it does not produce separate resources for other resource types.
-Instead, it uses "contained" resource to include all of the supporting data. (See "subject" with ```"reference": "#patient.contained.inline"```
-
-This approach will allow downstream systems to map inline resources to new or existing FHIR resource types replacing inline references to actual object within FHIR Server.
-Until such time, all of the a data is included within a single resource.
-
 ### Sample Output
-```
+```json
 {
   "resourceType": "Bundle",
   "id": "f87746a0-7ff5-4666-8302-423cfdf3f275",
@@ -265,5 +272,5 @@ Until such time, all of the a data is included within a single resource.
 
 ## Todo 
 
-- [ ] Allow to pass custom function to create FHIR resource ids from business identifiers
+- [x] Allow to pass custom function to create FHIR resource ids from business identifiers
 - [ ] Add support for DICOMweb data inputs
