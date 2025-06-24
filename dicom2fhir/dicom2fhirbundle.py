@@ -5,7 +5,7 @@ from fhir.resources.R4B import patient
 from fhir.resources.R4B import device
 from pydicom import dataset
 import logging
-from dicom2fhir.dicom2fhirutils import gen_coding, gen_started_datetime, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, dcm_coded_concept, gen_reason
+from dicom2fhir.dicom2fhirutils import gen_coding, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, gen_reason
 from dicom2fhir.dicom2patient import build_patient_resource
 from dicom2fhir.dicom2observation import build_observation_resources
 from dicom2fhir.dicom2device import build_device_resource
@@ -81,7 +81,7 @@ class Dicom2FHIRBundle():
 
         try:
             studyDate = ds.StudyDate
-            study_data["started"] = gen_started_datetime(studyDate, studyTime)
+            study_data["started"] = gen_started_datetime(studyDate, studyTime, self.config["dicom_timezone"])
         except Exception:
             pass  # print("Study Date is missing")
 
@@ -224,7 +224,7 @@ class Dicom2FHIRBundle():
 
         def _to_entry(resource):
             return {
-                'fullUrl': f"urn:uuid:{resource.id}",
+                #'fullUrl': f"urn:uuid:{resource.id}",
                 'resource': resource,
                 'request': {
                     'method': 'PUT',

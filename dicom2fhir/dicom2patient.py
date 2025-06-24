@@ -31,8 +31,8 @@ def dicom_name_to_fhir(name: Union[PersonName, str, None]) -> HumanName:
     return HumanName.model_construct(
         family      = name.family_name,
         given       = [n for n in [name.given_name, name.middle_name] if n],
-        prefix      = name.name_prefix,
-        suffix      = name.name_suffix
+        prefix      = [name.name_prefix] if name.name_prefix else None,
+        suffix      = [name.name_suffix] if name.name_suffix else None,
     )
 
 
@@ -89,13 +89,21 @@ def build_patient_resource(ds: Dataset, config: dict) -> Patient:
 
     # Identifier
     if "PatientID" in ds:
+
+        assigner = None
+        issuer_of_patient_id = ds.get("IssuerOfPatientID", None)
+        if issuer_of_patient_id is not None and len(issuer_of_patient_id) > 0:
+            assigner = {
+                "display": issuer_of_patient_id
+            }
+
         patient.id = config['id_function']('Patient', ds)
         patient.identifier = [
             Identifier.model_construct(
                 use="usual",
                 system="urn:dicom:patient-id",
                 value=ds.PatientID,
-                assigner={"display": ds.get("IssuerOfPatientID")} if "IssuerOfPatientID" in ds else None
+                assigner=assigner
             )
         ]
     else:

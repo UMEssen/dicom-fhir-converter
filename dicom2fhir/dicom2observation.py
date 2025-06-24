@@ -30,7 +30,7 @@ def build_observation_resources(ds: Dataset, patient: Patient, study: ImagingStu
             partOf=[{
                 "reference": f"ImagingStudy/{study.id}" if study else None
             }],
-            effectiveDateTime=gen_started_datetime(ds.StudyDate, ds.StudyTime),
+            effectiveDateTime=gen_started_datetime(ds.StudyDate, ds.StudyTime, config["dicom_timezone"]),
             valueQuantity=Quantity.model_construct(value=value, unit=unit, system=system, code=code_unit)
         )
 

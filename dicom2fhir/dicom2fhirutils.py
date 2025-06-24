@@ -1,4 +1,5 @@
 from datetime import datetime
+from dateutil import tz as dateutil_tz
 
 from fhir.resources.R4B import imagingstudy
 from fhir.resources.R4B import identifier
@@ -145,34 +146,44 @@ def gen_procedurecode_array(procedures):
     return None
 
 
-def gen_started_datetime(dt, tm):
+def gen_started_datetime(dt, tm, tz):
+    """
+    Generate a timezone-aware datetime object from DICOM date and time strings.
+
+    Args:
+        dt (str): DICOM date in the format 'YYYYMMDD'.
+        tm (str): DICOM time in the format 'HHMMSS' or shorter.
+        tz (str): Timezone as a string (e.g., 'Europe/Berlin' or '+01:00').
+
+    Returns:
+        datetime: A timezone-aware datetime object or None.
+    """
     if dt is None:
         return None
 
     dt_pattern = '%Y%m%d'
-
     if tm is not None and len(tm) >= 6:
         studytm = datetime.strptime(tm[0:6], '%H%M%S')
-
-        dt_string = dt + " " + str(studytm.hour) + ":" + \
-            str(studytm.minute) + ":" + str(studytm.second)
-        dt_pattern = dt_pattern + " %H:%M:%S"
+        dt_string = f"{dt} {studytm.hour:02d}:{studytm.minute:02d}:{studytm.second:02d}"
+        dt_pattern += " %H:%M:%S"
     else:
         dt_string = dt
 
-    dt_date = datetime.strptime(dt_string, dt_pattern)
+    try:
+        dt_date = datetime.strptime(dt_string, dt_pattern)
+    except ValueError:
+        return None
 
-    # strangely, providing the datetime.date object does not work
-    fhirDtm = datetime(
-        dt_date.year,
-        dt_date.month,
-        dt_date.day,
-        dt_date.hour,
-        dt_date.minute,
-        dt_date.second
-    )
+    # Apply timezone
+    try:
+        if tz:
+            tzinfo = dateutil_tz.gettz(tz)
+            if tzinfo is not None:
+                dt_date = dt_date.replace(tzinfo=tzinfo)
+    except Exception:
+        pass
 
-    return fhirDtm
+    return dt_date
 
 def gen_reason(reason, reasonStr):
     if reason is None and reasonStr is None:
