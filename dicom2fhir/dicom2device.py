@@ -4,6 +4,8 @@ import uuid
 from collections.abc import Iterable
 from pydicom.dataset import Dataset
 from fhir.resources.R4B.device import Device
+from fhir.resources.R4B.annotation import Annotation
+from fhir.resources.R4B.backboneelement import BackboneElement
 
 def _map_software_versions(ds: Dataset) -> list[dict]:
     """
@@ -49,7 +51,7 @@ def build_device_resource(ds: Dataset, config: dict) -> Device:
     if (m := ds.get("Manufacturer")):
         device.manufacturer = m
     if (name := ds.get("ManufacturerModelName")):
-        device.deviceName = [{"name": name, "type": "model-name"}]
+        device.deviceName = [BackboneElement.model_construct(name=name, type="model-name")]
 
     # Software version(s)
     device.version = _map_software_versions(ds)
@@ -67,7 +69,7 @@ def build_device_resource(ds: Dataset, config: dict) -> Device:
     if (station := ds.get("StationName")):
         # Could be assigned to device.deviceName as 'station' or use part of location
         device.deviceName = device.deviceName or []
-        device.deviceName.append({"name": station, "type": "station-name"})
+        device.deviceName.append(DeviceName.model_construct(name=station, type="station-name"))
 
     # Physical/device-specific details
     if (spat := ds.get("SpatialResolution")):
@@ -83,12 +85,12 @@ def build_device_resource(ds: Dataset, config: dict) -> Device:
     if cal_date or cal_time:
         dt = cal_date + (cal_time or "")
         device.note = device.note or []
-        device.note.append({"text": f"Last calibration: {dt}"})
+        device.note.append(Annotation.model_construct(text=f"Last calibration: {dt}"))
 
     # Pixel padding—maybe not core but included
     if (pad := ds.get("PixelPaddingValue")):
         device.note = device.note or []
-        device.note.append({"text": f"Pixel padding value: {pad}"})
+        device.note.append(Annotation.model_construct(text=f"Pixel padding value: {pad}"))
 
     # UDI (Unique Device Identifier)
     if hasattr(ds, "UDISequence"):
