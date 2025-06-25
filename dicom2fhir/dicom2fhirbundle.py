@@ -3,6 +3,7 @@ from fhir.resources.R4B import bundle
 from fhir.resources.R4B import imagingstudy
 from fhir.resources.R4B import patient
 from fhir.resources.R4B import device
+from fhir.resources.R4B.reference import Reference
 from pydicom import dataset
 import logging
 from dicom2fhir.dicom2fhirutils import gen_coding, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, gen_reason
@@ -61,9 +62,7 @@ class Dicom2FHIRBundle():
         study_data["identifier"].append(gen_studyinstanceuid_identifier(ds.StudyInstanceUID))
 
         # Set the patient reference
-        study_data["subject"] = {
-            "reference": f"Patient/{self.pat.id}" if self.pat else None
-        }
+        study_data["subject"] = Reference.model_construct(reference=f"Patient/{self.pat.id}") if self.pat else None
 
         procedures = []
         try:
@@ -134,7 +133,7 @@ class Dicom2FHIRBundle():
         try:
             stime = ds.SeriesTime
             sdate = ds.SeriesDate
-            self.series[series_instance_uid]["started"] = gen_started_datetime(sdate, stime)
+            self.series[series_instance_uid]["started"] = gen_started_datetime(sdate, stime, self.config["dicom_timezone"])
         except Exception:
             pass  # print("Series Date/Time is missing")
 

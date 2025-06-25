@@ -8,6 +8,7 @@ from fhir.resources.R4B.imagingstudy import ImagingStudy
 from fhir.resources.R4B.quantity import Quantity
 from fhir.resources.R4B.codeableconcept import CodeableConcept
 from fhir.resources.R4B.coding import Coding
+from fhir.resources.R4B.reference import Reference
 from dicom2fhir.dicom2fhirutils import gen_started_datetime
 
 def build_observation_resources(ds: Dataset, patient: Patient, study: ImagingStudy, config: dict) -> List[Observation]:
@@ -24,24 +25,20 @@ def build_observation_resources(ds: Dataset, patient: Patient, study: ImagingStu
                 coding=[Coding.model_construct(system="http://loinc.org", code=code, display=display)],
                 text=display
             ),
-            subject={
-                "reference": f"Patient/{patient.id}" if patient else None
-            },
-            partOf=[{
-                "reference": f"ImagingStudy/{study.id}" if study else None
-            }],
+            subject=Reference.model_construct(reference=f"Patient/{patient.id}") if patient else None,
+            partOf=[Reference.model_construct(reference=f"ImagingStudy/{study.id}")] if study else [],
             effectiveDateTime=gen_started_datetime(ds.StudyDate, ds.StudyTime, config["dicom_timezone"]),
             valueQuantity=Quantity.model_construct(value=value, unit=unit, system=system, code=code_unit)
         )
 
-    if "PatientWeight" in ds:
+    if "PatientWeight" in ds and ds.PatientWeight is not None:
         try:
             weight = float(ds.PatientWeight)
             observations.append(create_obs("29463-7", "Body Weight", weight, "kg", "http://unitsofmeasure.org", "kg"))
         except ValueError:
             pass
 
-    if "PatientSize" in ds:
+    if "PatientSize" in ds and ds.PatientSize is not None:
         try:
             height = float(ds.PatientSize)
             observations.append(create_obs("8302-2", "Body Height", height, "m", "http://unitsofmeasure.org", "m"))
