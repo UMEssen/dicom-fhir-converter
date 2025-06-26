@@ -190,9 +190,11 @@ def gen_reason(reason, reasonStr):
         return None
     reasonList = []
     if reason is None or len(reason) <= 0:
-        rc = codeableconcept.CodeableConcept.model_construct()
-        rc.text = reasonStr
-        reasonList.append(rc)
+        # Only assign if non-empty and not just whitespace
+        if reasonStr and reasonStr.strip():
+            rc = codeableconcept.CodeableConcept.model_construct()
+            rc.text = reasonStr
+            reasonList.append(rc)
         return reasonList
 
     for r in reason:
