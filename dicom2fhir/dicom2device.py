@@ -68,7 +68,7 @@ def build_device_resource(ds: Dataset, config: dict) -> Device:
     if (station := ds.get("StationName")):
         # Could be assigned to device.deviceName as 'station' or use part of location
         device.deviceName = device.deviceName or []
-        device.deviceName.append(DeviceName.model_construct(name=station, type="station-name"))
+        device.deviceName.append(DeviceDeviceName.model_construct(name=station, type="station-name"))
 
     # Physical/device-specific details
     if (spat := ds.get("SpatialResolution")):
