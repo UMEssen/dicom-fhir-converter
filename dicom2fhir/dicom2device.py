@@ -3,9 +3,8 @@
 import uuid
 from collections.abc import Iterable
 from pydicom.dataset import Dataset
-from fhir.resources.R4B.device import Device
+from fhir.resources.R4B.device import Device, DeviceDeviceName
 from fhir.resources.R4B.annotation import Annotation
-from fhir.resources.R4B.backboneelement import BackboneElement
 
 def _map_software_versions(ds: Dataset) -> list[dict]:
     """
@@ -51,7 +50,7 @@ def build_device_resource(ds: Dataset, config: dict) -> Device:
     if (m := ds.get("Manufacturer")):
         device.manufacturer = m
     if (name := ds.get("ManufacturerModelName")):
-        device.deviceName = [BackboneElement.model_construct(name=name, type="model-name")]
+        device.deviceName = [DeviceDeviceName.model_construct(name=name, type="model-name")]
 
     # Software version(s)
     device.version = _map_software_versions(ds)
