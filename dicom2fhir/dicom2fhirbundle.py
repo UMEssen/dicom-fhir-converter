@@ -7,7 +7,7 @@ from fhir.resources.R4B.reference import Reference
 from fhir.resources.R4B.meta import Meta
 #from pydicom import dataset
 import logging
-from dicom2fhir.dicom2fhirutils import gen_coding, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, gen_reason
+from dicom2fhir.dicom2fhirutils import gen_coding, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, gen_reason, gen_laterality_coding
 from dicom2fhir.dicom2patient import build_patient_resource
 from dicom2fhir.dicom2observation import build_observation_resources
 from dicom2fhir.dicom2device import build_device_resource
@@ -155,7 +155,7 @@ class Dicom2FHIRBundle():
             self.series[series_instance_uid]["bodySite"] = gen_bodysite_coding(str(ds.BodyPartExamined))
 
         if ds.non_empty("Laterality"):
-            self.series[series_instance_uid]["laterality"] = gen_coding(str(ds.Laterality))
+            self.series[series_instance_uid]["laterality"] = gen_laterality_coding(str(ds.Laterality))
         
         ########### extensions ##########
         series_extensions = []
