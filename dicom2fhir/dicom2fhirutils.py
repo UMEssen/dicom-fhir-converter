@@ -59,6 +59,7 @@ def get_lat_snomed(laterality: str, sctmapping: pd.DataFrame):
     if not match.empty:
         row = match.iloc[0]
         return row["Code Value"], row["Code Meaning"]
+    return None, None
 
 def _coding(d: dict) -> coding.Coding | None:
 
