@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dicom2fhir"
-version = "0.1.23"
+version = "0.1.25"
 description = "Convert dicoms to FHIR Bundles containing ImagingStudy, Patient, Device, and Observation resources."
 keywords = ["dicom", "fhir", "resources", "python", "hl7", "health IT", "healthcare"]
 classifiers = [
@@ -37,7 +37,7 @@ dev = [
 Repository = "https://github.com/UMEssen/dicom-fhir-converter"
 
 [tool.setuptools.package-data]
-"dicom2fhir" = ["resources/terminologies/*.json"]
+"dicom2fhir" = ["resources/terminologies/**/*"]
 
 [tool.setuptools.packages.find]
 where = ["."]               # scan the project root
