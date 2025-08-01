@@ -29,6 +29,8 @@ SOP_CLASS_SYS = "urn:ietf:rfc:3986"
 # load rather expesive resource into global var to make it reusable
 BODYSITE_SNOMED_MAPPING_PATH = Path(__file__).parent / "resources" / "terminologies" / "bodysite_snomed.json"
 BODYSITE_SNOMED_MAPPING = pd.DataFrame(json.loads(BODYSITE_SNOMED_MAPPING_PATH.read_text(encoding="utf-8")))
+LATERALITY_SNOMED_MAPPING_PATH = Path(__file__).parent / "resources" / "terminologies" / "laterality_snomed.json"
+LATERALITY_SNOMED_MAPPING = pd.DataFrame(json.loads(LATERALITY_SNOMED_MAPPING_PATH.read_text(encoding="utf-8")))
 
 def _get_snomed(dicom_bodypart: str, sctmapping: pd.DataFrame) -> dict[str, str] | None:
     _rec = sctmapping.loc[sctmapping['Body Part Examined'] == dicom_bodypart]
@@ -38,6 +40,25 @@ def _get_snomed(dicom_bodypart: str, sctmapping: pd.DataFrame) -> dict[str, str]
         'code': _rec["Code Value"].iloc[0],
         'display': _rec["Code Meaning"].iloc[0],
     }
+
+def get_lat_snomed(laterality: str, sctmapping: pd.DataFrame):
+    # Check: 'SNOMED-RT ID'
+    match = sctmapping[sctmapping['SNOMED-RT ID'] == laterality]
+    if not match.empty:
+        row = match.iloc[0]
+        return row["Code Value"], row["Code Meaning"]
+
+    # Check: 'Code Meaning'
+    match = sctmapping[sctmapping['Code Meaning'] == laterality]
+    if not match.empty:
+        row = match.iloc[0]
+        return row["Code Value"], row["Code Meaning"]
+
+    # Check: already valid 'Code Value'
+    match = sctmapping[sctmapping['Code Value'] == laterality]
+    if not match.empty:
+        row = match.iloc[0]
+        return row["Code Value"], row["Code Meaning"]
 
 def _coding(d: dict) -> coding.Coding | None:
 
@@ -241,6 +262,30 @@ def gen_bodysite_coding(bd):
         code=str(bd_snomed['code']),
         system="http://snomed.info/sct",
         display=bd_snomed['display']
+    )
+
+def gen_laterality_coding(laterality):
+
+    if laterality == "B":
+        laterality = "Bilateral"
+    elif laterality == "U":
+        laterality = "Unilateral"
+    elif laterality == "R":
+        laterality = "Right"
+    elif laterality == "L":
+        laterality = "Left"
+    else:
+        pass
+
+    lat_code, lat_display = get_lat_snomed(
+        laterality, sctmapping=LATERALITY_SNOMED_MAPPING)
+    if lat_code is None:
+        return None
+
+    return gen_coding(
+        code=lat_code,
+        system="http://snomed.info/sct",
+        display=lat_display
     )
 
 def dcm_coded_concept(code_sequence: list[DicomJsonProxy]):
