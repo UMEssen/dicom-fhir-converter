@@ -8,6 +8,7 @@ from fhir.resources.R4B.quantity import Quantity
 from fhir.resources.R4B.codeableconcept import CodeableConcept
 from fhir.resources.R4B.coding import Coding
 from fhir.resources.R4B.reference import Reference
+from fhir.resources.R4B.meta import Meta
 from dicom2fhir.dicom2fhirutils import gen_started_datetime
 from dicom2fhir.dicom_json_proxy import DicomJsonProxy
 
@@ -19,6 +20,7 @@ def build_observation_resources(ds: DicomJsonProxy, patient: Patient, study: Ima
     def create_obs(code: str, display: str, value: float, unit: str, system: str, code_unit: str) -> Observation:
         return Observation.model_construct(
             id=config['id_function']('Observation', ds, extra=code),
+            meta = Meta(profile=["https://www.medizininformatik-initiative.de/fhir/ext/modul-bildgebung/StructureDefinition/mii-pr-bildgebung-radiologische-beobachtung"]),
             status="final",
             category=[CodeableConcept.model_construct(
                 coding=[Coding.model_construct(system="http://terminology.hl7.org/CodeSystem/observation-category", code="vital-signs")]

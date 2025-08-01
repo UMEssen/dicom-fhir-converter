@@ -4,6 +4,7 @@ from fhir.resources.R4B import imagingstudy
 from fhir.resources.R4B import patient
 from fhir.resources.R4B import device
 from fhir.resources.R4B.reference import Reference
+from fhir.resources.R4B.meta import Meta
 #from pydicom import dataset
 import logging
 from dicom2fhir.dicom2fhirutils import gen_coding, SOP_CLASS_SYS, ACQUISITION_MODALITY_SYS, gen_bodysite_coding, gen_accession_identifier, gen_studyinstanceuid_identifier, dcm_coded_concept, gen_procedurecode_array, gen_started_datetime, gen_reason
@@ -12,6 +13,8 @@ from dicom2fhir.dicom2observation import build_observation_resources
 from dicom2fhir.dicom2device import build_device_resource
 from dicom2fhir.helpers import get_or
 from dicom2fhir.dicom_json_proxy import DicomJsonProxy
+# extensions
+from dicom2fhir.extensions import extension_contrast, extension_CT, extension_instance, extension_MG_CR_DX, extension_MR, extension_NM, extension_PT, extension_reason
 
 class Dicom2FHIRBundle():
 
@@ -51,6 +54,8 @@ class Dicom2FHIRBundle():
 
         study_data = {}
         study_data["resource_type"] = "ImagingStudy"
+        study_data["meta"] = Meta(profile=[
+            "https://www.medizininformatik-initiative.de/fhir/ext/modul-bildgebung/StructureDefinition/mii-pr-bildgebung-bildgebungsstudie"])
         study_data["id"] = self.config['id_function']("ImagingStudy", ds)
         study_data["status"] = "available"
         
@@ -87,6 +92,14 @@ class Dicom2FHIRBundle():
                     reasonStr = str(ds.ReasonForTheRequestedProcedure)
                 if reason is not None and reasonStr is not None:
                     study_data["reasonCode"] = gen_reason(reason, reasonStr)
+        
+        study_extensions = []
+        # reason extension
+        e_reason = extension_reason.create_extension(ds)
+        if e_reason is not None:
+            study_extensions.append(e_reason)
+
+        study_data["extension"] = study_extensions
 
         study_data["numberOfSeries"] = 0
         study_data["numberOfInstances"] = 0
@@ -143,6 +156,42 @@ class Dicom2FHIRBundle():
 
         if ds.non_empty("Laterality"):
             self.series[series_instance_uid]["laterality"] = gen_coding(str(ds.Laterality))
+        
+        ########### extensions ##########
+        series_extensions = []
+
+        # MR extension
+        if str(ds.Modality) == "MR":
+            e_MR = extension_MR.create_extension(ds)
+            if e_MR is not None:
+                series_extensions.append(e_MR)
+        # MG/DX/CR extension
+        if (str(ds.Modality) == "MG") or (str(ds.Modality) == "DX") or (str(ds.Modality) == "CR"):
+            e_MG = extension_MG_CR_DX.create_extension(ds)
+            if e_MG is not None:
+                series_extensions.append(e_MG)
+        # CT extension
+        if str(ds.Modality) == "CT":
+            e_CT = extension_CT.create_extension(ds)
+            if e_CT is not None:
+                series_extensions.append(e_CT)
+        # NM extension
+        if str(ds.Modality) == "NM":
+            e_NM = extension_NM.create_extension(ds)
+            if e_NM is not None:
+                series_extensions.append(e_NM)
+        # PT extension
+        if str(ds.Modality) == "PT":
+            e_PT = extension_PT.create_extension(ds)
+            if e_PT is not None:
+                series_extensions.append(e_PT)
+
+        # contrast extension
+        e_con = extension_contrast.create_extension(ds)
+        if e_con is not None:
+            series_extensions.append(e_con)
+
+        self.series[series_instance_uid]["extension"] = series_extensions
     
     def _add_instance(self, ds: DicomJsonProxy):
 
@@ -173,10 +222,15 @@ class Dicom2FHIRBundle():
                 seq = ds.ConceptNameCodeSequence
                 if isinstance(seq, list) and len(seq) > 0:
                     self.instances[series_instance_uid][sop_instance_uid]["title"] = str(seq[0].CodeMeaning)
-            else:
-                self.instances[series_instance_uid][sop_instance_uid]["title"] = '\\'.join(str(ds.ImageType))
         except Exception:
             pass  # print("Unable to set instance title")
+
+        # instance extension
+        instance_extension = []
+        e_instance = extension_instance.create_extension(ds)
+        if e_instance is not None:
+            instance_extension.append(e_instance)
+        self.instances[series_instance_uid][sop_instance_uid]["extension"] = instance_extension
 
     def _build_imaging_study(self) -> imagingstudy.ImagingStudy:
         """

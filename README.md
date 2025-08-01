@@ -38,7 +38,7 @@ dicom2fhir_config = {
     "dicom_timezone": "Europe/Berlin",  # Set the timezone for DICOM dates
     "generator": {
         "imaging_study": {
-            "add_instance": False  # Do not add single instances, only series to the ImagingStudy
+            "add_instances": False  # Do not add single instances, only series to the ImagingStudy
         },
         "observation": {
             "add_vital_signs": True  # Add vital signs Observations for body weight and height

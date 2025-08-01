@@ -79,3 +79,21 @@ class DicomJsonProxy:
             return len(value) > 0
 
         return value is not None and str(value).strip() != ''
+
+    def get_list(self, name):
+        """
+        Returns all values of a DICOM element, even for multi-value attributes.
+        """
+        tag = tag_for_keyword(name)
+        if tag is None:
+            raise AttributeError(f"Unknown DICOM keyword: {name}")
+        key = f"{tag >> 16:04X}{tag & 0xFFFF:04X}"
+        elem = self._raw.get(key)
+
+        if not elem or "Value" not in elem:
+            return []
+
+        value = elem["Value"]
+        if elem["vr"] == "SQ":
+            return [DicomJsonProxy(item) for item in value]
+        return value

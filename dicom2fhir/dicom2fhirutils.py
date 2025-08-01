@@ -7,6 +7,8 @@ from fhir.resources.R4B import codeableconcept
 from fhir.resources.R4B import coding
 from fhir.resources.R4B import fhirtypes
 from fhir.resources.R4B import reference
+from fhir.resources.R4B import extension
+from fhir.resources.R4B import quantity
 import pandas as pd
 import json
 from pathlib import Path
@@ -207,6 +209,8 @@ def gen_coding(code: str, system: str|None = None, display: str|None = None):
     if isinstance(code, list):
         raise Exception(
         "More than one code for type Coding detected")
+    if not code or not code.strip():
+        return None
     c = coding.Coding.model_construct()
     c.code = code
     c.system = system
@@ -216,12 +220,14 @@ def gen_coding(code: str, system: str|None = None, display: str|None = None):
 
     return c
 
-def gen_codeable_concept(value_list: list, system):
-    c = codeableconcept.CodeableConcept.model_construct()
+def gen_codeable_concept(value_list: list, system, display=None, text=None):
+    c = codeableconcept.CodeableConcept()
     c.coding = []
     for _l in value_list:
-        m = gen_coding(_l, system)
+        m = gen_coding(_l, system, display)
         c.coding.append(m)
+    if text is not None:
+        c.text = str(text)
     return c
 
 def gen_bodysite_coding(bd):
@@ -266,3 +272,92 @@ def dcm_coded_concept(code_sequence: list[DicomJsonProxy]):
             concept["display"] = str(seq.CodeMeaning)
         concepts.append(concept)
     return concepts
+
+
+def gen_extension(url):
+    """    
+    Generates a FHIR Extension.
+    Args:
+        URL of the extension as string.
+    Returns:
+        FHIR Extension object.
+    """
+    e = extension.Extension()
+    e.url = url
+    return e
+
+
+def add_extension_value(e, url, value, system, unit, type, display=None, text=None):
+    """    
+    Adds a single value to an existing extension.
+    Args:
+        e: FHIR extension object, url: URL of the nex sub-extension, value: extension value, 
+        system: system of the extension value, unit: unit of the extension value, type: type of the extension value
+        display and text are optional arguments.
+    Returns:
+        FHIR Extension object with added sub-extension.
+    """
+
+    if value is None and text is None and display is None:
+        return None
+
+    if type == "string":
+        e.valueString = value
+        e.url = url
+
+    if type == "quantity":
+        e.url = url
+        try:
+            if isinstance(value, str):
+                value = value.strip()
+            value = float(value)
+            value_quantity = quantity.Quantity()
+            value_quantity.value = value
+            value_quantity.unit = unit
+            value_quantity.system = system
+            e.valueQuantity = value_quantity
+        except (ValueError, TypeError):
+            logging.warning(f"Skipping invalid Quantity.value: {value!r}. Adding as extension with valueString.")
+            sub_exts = []
+
+            ext_value = extension.Extension()
+            ext_value.url = "Value.quantity.value"
+            ext_value.valueString = str(value)
+            sub_exts.append(ext_value)
+
+            if unit:
+                ext_unit = extension.Extension()
+                ext_unit.url = "Value.quantity.unit"
+                ext_unit.valueString = unit
+                sub_exts.append(ext_unit)
+
+            if system:
+                ext_sys = extension.Extension()
+                ext_sys.url = "Value.quantity.system"
+                ext_sys.valueString = system
+                sub_exts.append(ext_sys)
+
+            e.extension = sub_exts
+
+    if type == "boolean":
+        e.url = url
+        e.valueBoolean = value
+
+    if type == "reference":
+        e.url = url
+        ref = reference.Reference()
+        ref.reference = value
+        ref.display = display
+        e.valueReference = ref
+
+    if type == "datetime":
+        e.url = url
+        e.valueDateTime = value
+
+    if type == "codeableconcept":
+        v = value if isinstance(value, list) else [value]
+        e.url = url
+        c = gen_codeable_concept(v, system, display, text)
+        e.valueCodeableConcept = c
+
+    return e

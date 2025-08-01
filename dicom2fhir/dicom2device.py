@@ -5,6 +5,7 @@ from dicom2fhir.dicom_json_proxy import DicomJsonProxy
 from fhir.resources.R4B.device import Device, DeviceDeviceName
 from fhir.resources.R4B.annotation import Annotation
 from fhir.resources.R4B.device import DeviceUdiCarrier
+from fhir.resources.R4B.meta import Meta
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,10 @@ def _map_software_versions(ds: DicomJsonProxy) -> list[dict]:
     # Normalize to list of strings
     raw = ds.SoftwareVersions
     if isinstance(raw, Iterable) and not isinstance(raw, (str, bytes)):
-        return [{'value': str(item).strip()} for item in raw if item is not None]
+        return [{'value': str(item).strip()} for item in raw if item and str(item).strip()]
     else:
-        return [{'value': str(raw).strip()}]
+        cleaned = str(raw).strip()
+        return [{'value': cleaned}] if cleaned else []
 
 def build_device_resource(ds: DicomJsonProxy, config: dict) -> Device:
     """
@@ -32,6 +34,8 @@ def build_device_resource(ds: DicomJsonProxy, config: dict) -> Device:
     """
 
     device = Device.model_construct()
+    device.meta = Meta(
+        profile=["https://www.medizininformatik-initiative.de/fhir/ext/modul-bildgebung/StructureDefinition/mii-pr-bildgebung-geraet"])
     # Resource ID
     device.id = config['id_function']('Device', ds)
 
@@ -70,9 +74,12 @@ def build_device_resource(ds: DicomJsonProxy, config: dict) -> Device:
     if ds.non_empty("InstitutionalDepartmentName"):
         device.location = {"display": str(ds.InstitutionalDepartmentName)}
     if ds.non_empty("StationName"):
-        # Could be assigned to device.deviceName as 'station' or use part of location
+        # set as user-friendly name according to
+        # _User defined name identifying the machine..._
         device.deviceName = device.deviceName or []
-        device.deviceName.append(DeviceDeviceName.model_construct(name=str(ds.StationName), type="station-name"))
+        device.deviceName.append(DeviceDeviceName.model_construct(
+            name=str(ds.StationName), type="user-friendly-name")
+        )
 
     # Physical/device-specific details
     try:
